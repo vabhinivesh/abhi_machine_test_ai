@@ -1,0 +1,40 @@
+{
+  "base_components": [
+    {
+      "sku": "PUMP-CASING-{family}-{material}",
+      "desc": "Pump casing {family} {material}",
+      "qty": 1,
+      "unit_price": {
+        "P100": {"CastIron": 700, "Stainless": 1200},
+        "P200": {"CastIron": 1000, "Stainless": 1600}
+      }
+    }
+  ],
+  "impellers": {
+    "IMP-100-XS": {"sku": "IMP-100-XS", "desc": "Impeller 100 Extra Small", "price": 150},
+    "IMP-100-S": {"sku": "IMP-100-S", "desc": "Impeller 100 Small", "price": 200},
+    "IMP-120-M": {"sku": "IMP-120-M", "desc": "Impeller 120 Medium", "price": 300},
+    "IMP-140-L": {"sku": "IMP-140-L", "desc": "Impeller 140 Large", "price": 450},
+    "IMP-180-XL": {"sku": "IMP-180-XL", "desc": "Impeller 180 XL", "price": 600}
+  },
+  "motors": {
+    "3|230V_1ph": {"sku": "MTR-3HP-230-1", "desc": "Motor 3HP 230V 1ph", "price": 500},
+    "5|460V_3ph": {"sku": "MTR-5HP-460-3", "desc": "Motor 5HP 460V 3ph", "price": 800},
+    "7.5|460V_3ph": {"sku": "MTR-7P5HP-460-3", "desc": "Motor 7.5HP 460V 3ph", "price": 1100},
+    "10|460V_3ph": {"sku": "MTR-10HP-460-3", "desc": "Motor 10HP 460V 3ph", "price": 1500}
+  },
+  "seal_kits": {
+    "Mechanical|CastIron": {"sku": "SEAL-MECH-CI", "desc": "Mechanical seal kit CI", "price": 300},
+    "Mechanical|Stainless": {"sku": "SEAL-MECH-SS", "desc": "Mechanical seal kit SS", "price": 350},
+    "Packing|CastIron": {"sku": "SEAL-PACK-CI", "desc": "Packing kit CI", "price": 80},
+    "Packing|Stainless": {"sku": "SEAL-PACK-SS", "desc": "Packing kit SS", "price": 90}
+  },
+  "mounts": {
+    "Base": {"sku": "MNT-BASE", "desc": "Baseplate & hardware", "price": 200},
+    "CloseCoupled": {"sku": "MNT-CC", "desc": "Close-coupled adapter", "price": 120}
+  },
+  "coupling": {"sku": "CPL-STD", "desc": "Flexible coupling", "price": 90},
+  "atex": {"sku": "ATEX-PKG", "desc": "ATEX compliance package", "price": 1000},
+  "fasteners": {"sku": "FST-KIT", "desc": "Fasteners kit", "price": 40},
+  "finish": {"sku": "PAINT-IND", "desc": "Industrial paint", "price": 35}
+}

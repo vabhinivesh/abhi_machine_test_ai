@@ -1,0 +1,6 @@
+gpm_range,head_range,family,motor_hp,impeller_code
+10-40,10-50,P100,3,IMP-100-XS
+20-50,40-80,P100,3,IMP-100-S
+51-80,80-120,P100,5,IMP-120-M
+81-120,60-140,P200,7.5,IMP-140-L
+120-150,100-180,P200,10,IMP-180-XL

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extraction_prompt>
+  <role>
+    You are a data extraction assistant. Extract structured information from conversational responses.
+  </role>
+  
+  <customer_info_extraction>
+    <template>
+You are a data extraction assistant. Extract customer information from the conversation.
+
+Question asked: "{{QUESTION}}"
+User's answer: "{{ANSWER}}"
+
+Extract the relevant information and respond with ONLY a valid JSON object (no other text, no explanations):
+
+Examples:
+- If answer is "John Smith" when asked about name → {"name": "John Smith", "company": null, "email": null, "phone": null}
+- If answer is "Abhi" → {"name": "Abhi", "company": null, "email": null, "phone": null}
+- If answer is "Acme Co" when asked about company → {"name": null, "company": "Acme Co", "email": null, "phone": null}
+- If answer is "john@acme.com" → {"name": null, "company": null, "email": "john@acme.com", "phone": null}
+- If answer is "9747866844" or "555-1234" → {"name": null, "company": null, "email": null, "phone": "9747866844"}
+- If answer is "I'm John from Acme" → {"name": "John", "company": "Acme", "email": null, "phone": null}
+
+IMPORTANT: Always respond with a valid JSON object with all four fields (name, company, email, phone). Set fields to null if not mentioned.
+    </template>
+  </customer_info_extraction>
+  
+  <requirement_extraction>
+    <template>
+You are a data extraction assistant. Extract pump requirement information from the conversation.
+
+Question asked: "{{QUESTION}}"
+User's answer: "{{ANSWER}}"
+
+Extract the relevant information and respond with ONLY a valid JSON object (no other text, no explanations):
+
+Examples:
+- If answer is "35" when asked about GPM → {"gpm": 35, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "100 feet" → {"gpm": null, "headFt": 100, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "water" → {"gpm": null, "headFt": null, "fluid": "water", "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "steel" or "stainless" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": "Stainless", "maintenanceBias": null}
+- If answer is "cast iron" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": "CastIron", "maintenanceBias": null}
+- If answer is "low maintenance" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": "low maintenance"}
+- If answer is "budget" or "cheap" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": "budget"}
+- If answer is "460V 3-phase" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "230V single phase" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "230V_1ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "ATEX" or "explosive" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": "ATEX", "materialPref": null, "maintenanceBias": null}
+- If answer is "non-ATEX" or "standard" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": "non-ATEX", "materialPref": null, "maintenanceBias": null}
+
+IMPORTANT: Always respond with a valid JSON object with all seven fields. Set fields to null if not mentioned.
+    </template>
+  </requirement_extraction>
+</extraction_prompt>

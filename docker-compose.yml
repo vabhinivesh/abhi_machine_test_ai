@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  temporal:
+    image: temporalio/auto-setup:1.24.0  # Using a specific version for stability
+    container_name: temporal-dev
+    ports:
+      - "7233:7233"  # gRPC port
+      - "8233:8233"  # Web UI port
+    environment:
+      - DB=postgres12  # Changed from postgresql to postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-postgres.yaml
+    volumes:
+      - ./config/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  postgresql:
+    image: postgres:13
+    container_name: temporal-postgresql
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8088:8080"
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:latest
+    container_name: temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    stdin_open: true
+    tty: true

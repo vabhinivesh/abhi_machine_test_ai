@@ -1,0 +1,15 @@
+option_type,option_value,constraints,price_adder
+MotorHP,3,,500
+MotorHP,5,,800
+MotorHP,7.5,,1100
+MotorHP,10,,1500
+Voltage,230V_1ph,"requires MotorHP<=3",0
+Voltage,460V_3ph,"requires MotorHP>=5",0
+SealType,Mechanical,,300
+SealType,Packing,,0
+Material,CastIron,,0
+Material,Stainless,,600
+Mount,Base,,200
+Mount,CloseCoupled,"requires MotorHP<=7.5",0
+ATEX,Yes,"requires Material=Stainless & SealType=Mechanical & Voltage=460V_3ph & Mount=Base & MotorHP>=5",1000
+ATEX,No,,0

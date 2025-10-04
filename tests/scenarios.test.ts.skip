@@ -1,0 +1,240 @@
+import { test, expect } from '@jest/globals';
+import { quoteWorkflow } from '../src/workflows/quote.workflow';
+import { TestWorkflowEnvironment } from '@temporalio/testing';
+import { Worker } from '@temporalio/worker';
+import * as activities from '../src/activities/quote.activities';
+
+// Mock the file system operations
+jest.mock('fs');
+import * as fs from 'fs';
+
+// Mock the open function
+jest.mock('open', () => jest.fn());
+
+// Mock the data store
+jest.mock('../src/data/loaders', () => ({
+  DataStore: {
+    catalog: [
+      { family: 'P100', minGpm: 20, maxGpm: 80, maxHeadFt: 120, maxHp: 5, baseNote: 'General duty' },
+      { family: 'P200', minGpm: 50, maxGpm: 150, maxHeadFt: 180, maxHp: 10, baseNote: 'Higher head/flow' }
+    ],
+    flowHeadMap: [
+      { gpmRange: '20-50', headRange: '40-80', family: 'P100', motorHp: 3, impellerCode: 'IMP-100-S' },
+      { gpmRange: '51-80', headRange: '80-120', family: 'P100', motorHp: 5, impellerCode: 'IMP-120-M' },
+      { gpmRange: '81-120', headRange: '60-140', family: 'P200', motorHp: 7.5, impellerCode: 'IMP-140-L' },
+      { gpmRange: '121-150', headRange: '100-180', family: 'P200', motorHp: 10, impellerCode: 'IMP-180-XL' }
+    ],
+    pricingRules: {
+      default_discount_pct: 20
+    },
+    bomRules: {
+      base_components: [
+        {
+          sku: 'PUMP-CASING-{family}-{material}',
+          desc: 'Pump casing {family} {material}',
+          qty: 1,
+          unit_price: {
+            P100: { CastIron: 700, Stainless: 1200 },
+            P200: { CastIron: 1000, Stainless: 1600 }
+          }
+        }
+      ],
+      impellers: {
+        'IMP-100-S': { sku: 'IMP-100-S', desc: 'Impeller 100 Small', price: 200 },
+        'IMP-120-M': { sku: 'IMP-120-M', desc: 'Impeller 120 Medium', price: 300 },
+        'IMP-140-L': { sku: 'IMP-140-L', desc: 'Impeller 140 Large', price: 450 },
+        'IMP-180-XL': { sku: 'IMP-180-XL', desc: 'Impeller 180 XL', price: 600 }
+      },
+      motors: {
+        '3|230V_1ph': { sku: 'MTR-3HP-230-1', desc: 'Motor 3HP 230V 1ph', price: 500 },
+        '5|460V_3ph': { sku: 'MTR-5HP-460-3', desc: 'Motor 5HP 460V 3ph', price: 800 },
+        '7.5|460V_3ph': { sku: 'MTR-7P5HP-460-3', desc: 'Motor 7.5HP 460V 3ph', price: 1100 },
+        '10|460V_3ph': { sku: 'MTR-10HP-460-3', desc: 'Motor 10HP 460V 3ph', price: 1500 }
+      },
+      seal_kits: {
+        'Mechanical|CastIron': { sku: 'SEAL-MECH-CI', desc: 'Mechanical seal kit CI', price: 300 },
+        'Mechanical|Stainless': { sku: 'SEAL-MECH-SS', desc: 'Mechanical seal kit SS', price: 350 },
+        'Packing|CastIron': { sku: 'SEAL-PACK-CI', desc: 'Packing kit CI', price: 80 },
+        'Packing|Stainless': { sku: 'SEAL-PACK-SS', desc: 'Packing kit SS', price: 90 }
+      },
+      mounts: {
+        'Base': { sku: 'MNT-BASE', desc: 'Baseplate & hardware', price: 200 },
+        'CloseCoupled': { sku: 'MNT-CC', desc: 'Close-coupled adapter', price: 120 }
+      },
+      coupling: { sku: 'CPL-STD', desc: 'Flexible coupling', price: 90 },
+      atex: { sku: 'ATEX-PKG', desc: 'ATEX compliance package', price: 1000 },
+      fasteners: { sku: 'FST-KIT', desc: 'Fasteners kit', price: 40 },
+      finish: { sku: 'PAINT-IND', desc: 'Industrial paint', price: 35 }
+    }
+  }
+}));
+
+describe('CPQ Agent', () => {
+  let testEnv: TestWorkflowEnvironment;
+  let worker: Worker;
+
+  beforeAll(async () => {
+    // Create a test environment (uses an in-memory SQLite database)
+    testEnv = await TestWorkflowEnvironment.createTimeSkipping();
+    
+    // Create a worker that uses the test environment
+    worker = await Worker.create({
+      connection: testEnv.nativeConnection,
+      taskQueue: 'test-queue',
+      workflowsPath: require.resolve('../src/workflows/quote.workflow'),
+      activities,
+    });
+    
+    // Mock fs.writeFileSync
+    (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+  });
+
+  afterAll(async () => {
+    await testEnv.teardown();
+  });
+
+  test('Scenario 1: Small, budget pump', async () => {
+    // Start the worker
+    const workerPromise = worker.run();
+    
+    // Create a client
+    const client = testEnv.client.workflow;
+    
+    // Start the workflow
+    const handle = await client.start(quoteWorkflow, {
+      taskQueue: 'test-queue',
+      workflowId: 'test-scenario-1',
+      args: [{
+        customer: {
+          name: 'Test User',
+          company: 'Test Company'
+        },
+        initialRequirements: {
+          gpm: 40,
+          headFt: 60,
+          fluid: 'water',
+          powerAvailable: '230V_1ph',
+          environment: 'non-ATEX',
+          maintenanceBias: 'budget',
+          materialPref: 'CastIron'
+        }
+      }]
+    });
+    
+    // Get the result
+    const result = await handle.result();
+    
+    // Verify the configuration
+    expect(result.configuration.family).toBe('P100');
+    expect(result.configuration.motorHp).toBe(3);
+    expect(result.configuration.voltage).toBe('230V_1ph');
+    expect(result.configuration.sealType).toBe('Packing');
+    expect(result.configuration.material).toBe('CastIron');
+    expect(result.configuration.mount).toBe('CloseCoupled');
+    expect(result.configuration.impeller).toBe('IMP-100-S');
+    
+    // Verify pricing is within expected range
+    expect(result.pricing.netTotal).toBeCloseTo(1412, 0);
+    
+    // Stop the worker
+    worker.shutdown();
+    await workerPromise;
+  });
+
+  test('Scenario 2: Medium, low maintenance', async () => {
+    // Start the worker
+    const workerPromise = worker.run();
+    
+    // Create a client
+    const client = testEnv.client.workflow;
+    
+    // Start the workflow
+    const handle = await client.start(quoteWorkflow, {
+      taskQueue: 'test-queue',
+      workflowId: 'test-scenario-2',
+      args: [{
+        customer: {
+          name: 'Test User',
+          company: 'Test Company'
+        },
+        initialRequirements: {
+          gpm: 75,
+          headFt: 100,
+          fluid: 'water',
+          powerAvailable: '460V_3ph',
+          environment: 'non-ATEX',
+          maintenanceBias: 'low maintenance',
+          materialPref: 'CastIron'
+        }
+      }]
+    });
+    
+    // Get the result
+    const result = await handle.result();
+    
+    // Verify the configuration
+    expect(result.configuration.family).toBe('P100');
+    expect(result.configuration.motorHp).toBe(5);
+    expect(result.configuration.voltage).toBe('460V_3ph');
+    expect(result.configuration.sealType).toBe('Mechanical');
+    expect(result.configuration.material).toBe('CastIron');
+    expect(result.configuration.mount).toBe('CloseCoupled');
+    expect(result.configuration.impeller).toBe('IMP-120-M');
+    
+    // Verify pricing is within expected range
+    expect(result.pricing.netTotal).toBeCloseTo(1908, 0);
+    
+    // Stop the worker
+    worker.shutdown();
+    await workerPromise;
+  });
+
+  test('Scenario 3: ATEX environment', async () => {
+    // Start the worker
+    const workerPromise = worker.run();
+    
+    // Create a client
+    const client = testEnv.client.workflow;
+    
+    // Start the workflow
+    const handle = await client.start(quoteWorkflow, {
+      taskQueue: 'test-queue',
+      workflowId: 'test-scenario-3',
+      args: [{
+        customer: {
+          name: 'Test User',
+          company: 'Test Company'
+        },
+        initialRequirements: {
+          gpm: 120,
+          headFt: 150,
+          fluid: 'hydrocarbon',
+          powerAvailable: '460V_3ph',
+          environment: 'ATEX',
+          maintenanceBias: 'low maintenance',
+          materialPref: 'Stainless'
+        }
+      }]
+    });
+    
+    // Get the result
+    const result = await handle.result();
+    
+    // Verify the configuration
+    expect(result.configuration.family).toBe('P200');
+    expect(result.configuration.motorHp).toBe(10);
+    expect(result.configuration.voltage).toBe('460V_3ph');
+    expect(result.configuration.sealType).toBe('Mechanical');
+    expect(result.configuration.material).toBe('Stainless');
+    expect(result.configuration.mount).toBe('Base');
+    expect(result.configuration.impeller).toBe('IMP-180-XL');
+    expect(result.configuration.atex).toBe(true);
+    
+    // Verify pricing is within expected range
+    expect(result.pricing.netTotal).toBeCloseTo(4332, 0);
+    
+    // Stop the worker
+    worker.shutdown();
+    await workerPromise;
+  });
+});

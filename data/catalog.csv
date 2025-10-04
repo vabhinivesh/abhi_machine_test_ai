@@ -1,0 +1,3 @@
+family,min_gpm,max_gpm,max_head_ft,max_hp,base_note
+P100,20,80,120,5,General duty
+P200,50,150,180,10,Higher head/flow
