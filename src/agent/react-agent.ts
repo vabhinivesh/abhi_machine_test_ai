@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { Ollama } from 'ollama';
-import { OpenAI } from 'openai';
+import { Agent, run } from '@openai/agents';
 import { PumpRequirements, PumpConfiguration, CustomerInfo, CPQCanvas } from '../models/types';
 import { searchCatalog, validateConfiguration, calculatePricing } from './tools';
 import { DataStore } from '../data/loaders';
@@ -16,14 +16,9 @@ import * as path from 'path';
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'ollama') as 'ollama' | 'openai';
 
 // Initialize AI clients
-let openaiClient: OpenAI | null = null;
 let ollamaClient: Ollama | null = null;
 
-if (AI_PROVIDER === 'openai' && process.env.OPENAI_API_KEY) {
-  openaiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
-} else {
+if (AI_PROVIDER !== 'openai') {
   ollamaClient = new Ollama({ 
     host: process.env.OLLAMA_HOST || 'http://localhost:11434' 
   });
@@ -234,16 +229,14 @@ export class ReActAgent {
     try {
       let aiResponse: string = '';
       
-      if (this.provider === 'openai' && openaiClient) {
-        const response = await openaiClient.chat.completions.create({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are a data extraction assistant. Respond only with valid JSON.' },
-            { role: 'user', content: extractionPrompt }
-          ],
-          // Don't set temperature - use model default
+      if (this.provider === 'openai') {
+        const agent = new Agent({
+          name: 'DataExtractor',
+          instructions: 'You are a data extraction assistant. Respond only with valid JSON.',
+          model: this.model
         });
-        aiResponse = response.choices[0]?.message?.content || '{}';
+        const result = await run(agent, extractionPrompt);
+        aiResponse = result.finalOutput || '{}';
       } else if (ollamaClient) {
         const response = await ollamaClient.chat({
           model: this.model,
@@ -513,15 +506,14 @@ export class ReActAgent {
     try {
       let question = '';
       
-      if (this.provider === 'openai' && openaiClient) {
-        const response = await openaiClient.chat.completions.create({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are a friendly sales assistant. Generate polite, professional questions. Do not include thinking process or XML tags. Output only the final question.' },
-            { role: 'user', content: prompt }
-          ],
+      if (this.provider === 'openai') {
+        const agent = new Agent({
+          name: 'SalesAssistant',
+          instructions: 'You are a friendly sales assistant. Generate polite, professional questions. Do not include thinking process or XML tags. Output only the final question.',
+          model: this.model
         });
-        question = response.choices[0]?.message?.content?.trim() || this.getFallbackQuestion(field);
+        const result = await run(agent, prompt);
+        question = result.finalOutput?.trim() || this.getFallbackQuestion(field);
       } else if (ollamaClient) {
         const response = await ollamaClient.chat({
           model: this.model,
@@ -605,15 +597,14 @@ export class ReActAgent {
     try {
       let question = '';
       
-      if (this.provider === 'openai' && openaiClient) {
-        const response = await openaiClient.chat.completions.create({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are a friendly sales assistant. Generate polite, professional questions with VARIED phrasing. Never repeat the same sentence structure (especially "To help me..."). Do not greet the customer on every question - only on the first one. Do not include thinking process or XML tags. Output only the final question.' },
-            { role: 'user', content: prompt }
-          ],
+      if (this.provider === 'openai') {
+        const agent = new Agent({
+          name: 'SalesAssistant',
+          instructions: 'You are a friendly sales assistant. Generate polite, professional questions with VARIED phrasing. Never repeat the same sentence structure (especially "To help me..."). Do not greet the customer on every question - only on the first one. Do not include thinking process or XML tags. Output only the final question.',
+          model: this.model
         });
-        question = response.choices[0]?.message?.content?.trim() || this.getFallbackRequirementQuestion(requirement);
+        const result = await run(agent, prompt);
+        question = result.finalOutput?.trim() || this.getFallbackRequirementQuestion(requirement);
       } else if (ollamaClient) {
         const response = await ollamaClient.chat({
           model: this.model,
