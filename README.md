@@ -212,7 +212,6 @@ npm run temporal
 ### AI Provider Errors
 
 - **OpenAI**: Verify API key is valid and has credits
-- **Anthropic**: Check API key permissions
 - **Ollama**: Ensure Ollama service is running (`ollama serve`)
 
 ## License
