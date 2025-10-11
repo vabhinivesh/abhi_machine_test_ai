@@ -6,33 +6,66 @@
   
   <customer_info_extraction>
     <template>
-You are a data extraction assistant. Extract customer information from the conversation.
+You are a data extraction assistant. Extract ALL customer information AND pump requirements from the user's message, even if they provide multiple pieces of information at once.
 
 Question asked: "{{QUESTION}}"
 User's answer: "{{ANSWER}}"
 
-Extract the relevant information and respond with ONLY a valid JSON object (no other text, no explanations):
+Extract ALL relevant information and respond with ONLY a valid JSON object (no other text, no explanations).
 
-Examples:
-- If answer is "John Smith" when asked about name → {"name": "John Smith", "company": null, "email": null, "phone": null}
-- If answer is "Abhi" → {"name": "Abhi", "company": null, "email": null, "phone": null}
-- If answer is "Acme Co" when asked about company → {"name": null, "company": "Acme Co", "email": null, "phone": null}
-- If answer is "john@acme.com" → {"name": null, "company": null, "email": "john@acme.com", "phone": null}
-- If answer is "9747866844" or "555-1234" → {"name": null, "company": null, "email": null, "phone": "9747866844"}
-- If answer is "I'm John from Acme" → {"name": "John", "company": "Acme", "email": null, "phone": null}
+JSON FORMAT - Include ALL fields:
+{"name": null, "company": null, "email": null, "phone": null, "gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
 
-IMPORTANT: Always respond with a valid JSON object with all four fields (name, company, email, phone). Set fields to null if not mentioned.
+CUSTOMER INFO EXAMPLES:
+- If answer is "John Smith" → {"name": "John Smith", "company": null, "email": null, "phone": null, "gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "Acme Co" → {"name": null, "company": "Acme Co", "email": null, "phone": null, "gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is empty/blank (""), "blank", "personal" when asked about company → {"name": null, "company": null, "email": null, "phone": null, "gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "john@acme.com" → {"name": null, "company": null, "email": "john@acme.com", "phone": null, "gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+
+COMBINED CUSTOMER + REQUIREMENTS EXAMPLES:
+- If answer is "Abhininivesh. I need a pump with 50gpm, 45feet head, 3phase supply available, steel pump, with low maintenance, water, non-ATEX, it is for my home" → {"name": "Abhininivesh", "company": null, "email": null, "phone": null, "gpm": 50, "headFt": 45, "fluid": "water", "powerAvailable": "460V_3ph", "environment": "non-ATEX", "materialPref": "Stainless", "maintenanceBias": "low maintenance"}
+- If answer is "John Smith, I need 100 GPM at 200 feet for oil, 460V 3-phase" → {"name": "John Smith", "company": null, "email": null, "phone": null, "gpm": 100, "headFt": 200, "fluid": "oil", "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+
+PUMP REQUIREMENTS (extract if mentioned):
+- "50gpm" or "50 GPM" → extract as "gpm": 50
+- "45feet" or "45 feet" or "45ft" → extract as "headFt": 45
+- "water", "oil", "chemicals" → extract as "fluid": "water"/"oil"/"chemicals"
+- "3phase", "3-phase", "460V 3-phase" → extract as "powerAvailable": "460V_3ph"
+- "single phase", "230V" → extract as "powerAvailable": "230V_1ph"
+- "ATEX" → extract as "environment": "ATEX"
+- "non-ATEX", "standard" → extract as "environment": "non-ATEX"
+- "steel", "stainless" → extract as "materialPref": "Stainless"
+- "cast iron" → extract as "materialPref": "CastIron"
+- "low maintenance" → extract as "maintenanceBias": "low maintenance"
+- "budget", "cheap" → extract as "maintenanceBias": "budget"
+
+CRITICAL:
+- Extract BOTH customer info AND pump requirements from the same message
+- Set fields to null ONLY if they are truly not mentioned
+- For email/phone, only extract ACTUAL addresses/numbers, not just the words "email" or "phone"
     </template>
   </customer_info_extraction>
   
   <requirement_extraction>
     <template>
-You are a data extraction assistant. Extract pump requirement information from the conversation.
+You are a data extraction assistant. Extract ALL pump requirement information from the user's message, even if they provide multiple pieces of information at once.
+
+IMPORTANT RULES:
+1. If the user uses relative references like "first one", "second", "option A", "the last one", etc., you MUST look at the QUESTION to understand what options were presented and map the user's answer to the correct value.
+
+2. UNIT CONVERSIONS - Always convert to standard units:
+   - Flow rate: Convert to GPM (Gallons Per Minute)
+     * Liters per minute (LPM) to GPM: divide by 3.785
+     * Cubic meters per hour (m³/h) to GPM: multiply by 4.403
+   - Head/Pressure: Convert to FEET
+     * Meters to feet: multiply by 3.281
+     * PSI to feet: multiply by 2.31
+     * Bar to feet: multiply by 33.45
 
 Question asked: "{{QUESTION}}"
 User's answer: "{{ANSWER}}"
 
-Extract the relevant information and respond with ONLY a valid JSON object (no other text, no explanations):
+Extract ALL relevant information and respond with ONLY a valid JSON object (no other text, no explanations):
 
 Examples:
 - If answer is "35" when asked about GPM → {"gpm": 35, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
@@ -44,10 +77,40 @@ Examples:
 - If answer is "budget" or "cheap" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": "budget"}
 - If answer is "460V 3-phase" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null}
 - If answer is "230V single phase" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "230V_1ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer contains "3phase", "3-phase", "three phase", "3 phase", "three-phase" or mentions "3phase supply" (without specific voltage) → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null} (default to 460V for industrial)
+- If answer is "single phase" or "1-phase" (without voltage) → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "230V_1ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "either" when asked about power → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null} (default to 460V 3-phase for industrial)
 - If answer is "ATEX" or "explosive" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": "ATEX", "materialPref": null, "maintenanceBias": null}
 - If answer is "non-ATEX" or "standard" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": "non-ATEX", "materialPref": null, "maintenanceBias": null}
+- If answer is "I need 50 GPM at 120 feet for water" → {"gpm": 50, "headFt": 120, "fluid": "water", "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+- If answer is "35 GPM, 80 feet, pumping oil, 460V 3-phase, non-ATEX, stainless steel, low maintenance" → {"gpm": 35, "headFt": 80, "fluid": "oil", "powerAvailable": "460V_3ph", "environment": "non-ATEX", "materialPref": "Stainless", "maintenanceBias": "low maintenance"}
+- If answer is "Abhininivesh. I need a pump with 50gpm, 45feet head, 3phase supply available, steel pump, with low maintenance, water, non-ATEX, it is for my home" → {"gpm": 50, "headFt": 45, "fluid": "water", "powerAvailable": "460V_3ph", "environment": "non-ATEX", "materialPref": "Stainless", "maintenanceBias": "low maintenance"}
+- If answer is "3 phase is 460v" or "460v 3 phase" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null}
 
-IMPORTANT: Always respond with a valid JSON object with all seven fields. Set fields to null if not mentioned.
+UNIT CONVERSION EXAMPLES:
+- If answer is "30 meters" when asked about head → {"gpm": null, "headFt": 98.43, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null} (30 × 3.281 = 98.43 feet)
+- If answer is "100 liters per minute" → {"gpm": 26.42, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null} (100 ÷ 3.785 = 26.42 GPM)
+- If answer is "50 PSI" → {"gpm": null, "headFt": 115.5, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null} (50 × 2.31 = 115.5 feet)
+- If answer is "20 m³/h" → {"gpm": 88.06, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null} (20 × 4.403 = 88.06 GPM)
+- If answer is "2 bar" → {"gpm": null, "headFt": 66.9, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null} (2 × 33.45 = 66.9 feet)
+- If answer is "150 LPM at 25 meters" → {"gpm": 39.63, "headFt": 82.03, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": null}
+
+RELATIVE REFERENCE EXAMPLES:
+- Question: "What power is available? (230V 1-phase or 460V 3-phase)", Answer: "first one" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "230V_1ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- Question: "What power is available? (230V 1-phase or 460V 3-phase)", Answer: "the second" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": "460V_3ph", "environment": null, "materialPref": null, "maintenanceBias": null}
+- Question: "Do you prefer Cast Iron or Stainless Steel?", Answer: "1st" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": "CastIron", "maintenanceBias": null}
+- Question: "ATEX or non-ATEX environment?", Answer: "option B" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": "non-ATEX", "materialPref": null, "maintenanceBias": null}
+- Question: "Budget-friendly or low maintenance?", Answer: "second option" → {"gpm": null, "headFt": null, "fluid": null, "powerAvailable": null, "environment": null, "materialPref": null, "maintenanceBias": "low maintenance"}
+
+IMPORTANT: 
+- Always respond with a valid JSON object with all seven fields
+- Extract ALL information present in the answer, even if multiple fields are provided
+- When user says "first", "1st", "option A", etc., look at the QUESTION to find what the first option is
+- When user says "second", "2nd", "option B", "last one", etc., look at the QUESTION to find what that option is
+- ALWAYS convert units to standard: GPM for flow rate, FEET for head/pressure
+- Recognize common unit abbreviations: m (meters), LPM (liters per minute), m³/h (cubic meters per hour), PSI, bar
+- Round converted values to 2 decimal places for precision
+- Set fields to null ONLY if they are truly not mentioned in the answer
     </template>
   </requirement_extraction>
 </extraction_prompt>

@@ -42,7 +42,17 @@ async function startInteractiveQuote(companyName?: string, contactName?: string)
   const agent = createReActAgent(initialCustomer as CustomerInfo, provider as 'ollama' | 'openai');
   
   console.log(chalk.green('✓ Agent ready!\n'));
-  console.log(chalk.yellow('The agent will ask questions to understand your pump requirements.\n'));
+  
+  // Generate AI-powered welcome message
+  try {
+    const welcomeMessage = await agent.generateWelcomeMessage();
+    console.log(chalk.bold.cyan('👋 ' + welcomeMessage + '\n'));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log(chalk.red(`\n❌ Error: ${errorMessage}\n`));
+    console.log(chalk.yellow('Please check that your AI service (OpenAI or Ollama) is properly configured and running.\n'));
+    process.exit(1);
+  }
   
   // ReAct Loop: Gather customer info and requirements (stop when proposing configuration)
   let gatheringComplete = false;
@@ -52,12 +62,12 @@ async function startInteractiveQuote(companyName?: string, contactName?: string)
   console.log(chalk.cyan('Agent:'), result.response, '\n');
   
   while (!gatheringComplete) {
-    // Check if we're asking for optional field (company)
+    // Check if we're asking for optional field (name or company)
     const agentState = agent.getState();
     const missingInfo = agentState.phase === 'customer_info' 
-      ? (!agentState.customer.name ? 'name' : !agentState.customer.company ? 'company' : 'email_or_phone')
+      ? (!agentState.customer.name ? 'name' : agentState.customer.company === undefined ? 'company' : 'email_or_phone')
       : null;
-    const isOptionalField = missingInfo === 'company';
+    const isOptionalField = missingInfo === 'company' || missingInfo === 'name';
     
     // Get user input
     const { userInput } = await inquirer.prompt([{
